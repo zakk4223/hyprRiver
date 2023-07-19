@@ -1,5 +1,5 @@
 #include "RiverLayoutProtocolManager.hpp"
-#include <src/Compositor.hpp>
+#include <hyprland/src/Compositor.hpp>
 #include "river-layout-v3-protocol.h"
 
 

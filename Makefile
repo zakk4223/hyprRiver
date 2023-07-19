@@ -4,7 +4,7 @@
 
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
 
-CXXFLAGS=-shared -Wall -fPIC --no-gnu-unique -I "${HYPRLAND_HEADERS}" -I "/usr/include/pixman-1" -I "/usr/include/libdrm" -std=c++23 
+CXXFLAGS=-shared -Wall -fPIC --no-gnu-unique -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b 
 
 OBJS=riverLayout.o RiverLayoutProtocolManager.o river-layout-v3-protocol.o main.o
 

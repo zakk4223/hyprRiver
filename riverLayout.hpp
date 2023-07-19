@@ -4,7 +4,7 @@
 
 #include "globals.hpp"
 #include "RiverLayoutProtocolManager.hpp"
-#include <src/layout/IHyprLayout.hpp>
+#include <hyprland/src/layout/IHyprLayout.hpp>
 #include <vector>
 #include <list>
 #include <deque>
@@ -52,7 +52,7 @@ class CRiverLayout : public IHyprLayout {
     virtual bool                     isWindowTiled(CWindow*);
     virtual void                     recalculateMonitor(const int&);
     virtual void                     recalculateWindow(CWindow*);
-    virtual void                     resizeActiveWindow(const Vector2D&, CWindow* pWindow = nullptr);
+    virtual void                     resizeActiveWindow(const Vector2D&, eRectCorner corner, CWindow* pWindow = nullptr);
     virtual void                     fullscreenRequestForWindow(CWindow*, eFullscreenMode, bool);
     virtual std::any                 layoutMessage(SLayoutMessageHeader, std::string);
     virtual SWindowRenderLayoutHints requestRenderHints(CWindow*);

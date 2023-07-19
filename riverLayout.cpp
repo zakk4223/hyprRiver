@@ -1,5 +1,5 @@
 #include "riverLayout.hpp"
-#include <src/Compositor.hpp>
+#include <hyprland/src/Compositor.hpp>
 
 
 
@@ -368,7 +368,7 @@ bool CRiverLayout::isWindowTiled(CWindow* pWindow) {
     return getNodeFromWindow(pWindow) != nullptr;
 }
 
-void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, CWindow* pWindow) {
+void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner corner, CWindow* pWindow) {
 
   //River's tiling paradigm has no concept of being able to manually resize windows in a stack/area etc. 
   //If you try to resize a window it just forces it to float. Do the same thing here

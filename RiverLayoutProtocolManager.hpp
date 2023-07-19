@@ -1,7 +1,7 @@
 #pragma once
 #define WLR_USE_UNSTABLE
 #include "globals.hpp"
-#include <src/defines.hpp>
+#include <hyprland/src/defines.hpp>
 #include "riverLayout.hpp"
 
 
