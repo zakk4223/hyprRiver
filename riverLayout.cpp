@@ -1,6 +1,7 @@
 #include "riverLayout.hpp"
 #include <hyprland/src/render/decorations/CHyprGroupBarDecoration.hpp>
 #include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/render/decorations/DecorationPositioner.hpp>
 
 
 
@@ -114,7 +115,7 @@ void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction)
 			for (auto& wd : OPENINGON->pWindow->m_dWindowDecorations) {
 				if (!(wd->getDecorationFlags() & DECORATION_ALLOWS_MOUSE_INPUT))
 					continue;
-				if (wd->getWindowDecorationRegion().containsPoint(MOUSECOORDS)) {
+				if (g_pDecorationPositioner->getWindowDecorationBox(wd.get()).containsPoint(MOUSECOORDS)) {
 					if(!wd->onEndWindowDragOnDeco(pWindow, MOUSECOORDS))
 						return;
 					break;
