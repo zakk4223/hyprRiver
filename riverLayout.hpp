@@ -10,7 +10,7 @@
 #include <deque>
 #include <any>
 
-enum eFullscreenMode : uint8_t;
+enum eFullscreenMode : int8_t;
 
 struct SRiverNodeData {
 
@@ -24,6 +24,8 @@ struct SRiverNodeData {
     float    percSize = 1.f; // size multiplier for resizing children
 
     int      workspaceID = -1;
+		bool		 ignoreFullscreenChecks = false;
+
 
     bool     operator==(const SRiverNodeData& rhs) const {
         return pWindow == rhs.pWindow;
@@ -47,7 +49,7 @@ class CRiverLayout : public IHyprLayout {
 
     CRiverLayout(const char *r_namespace);
     std::string			     m_sRiverNamespace = "";
-    virtual void                     onWindowCreatedTiling(CWindow*);
+    virtual void                     onWindowCreatedTiling(CWindow*, eDirection direction = DIRECTION_DEFAULT);
     virtual void                     onWindowRemovedTiling(CWindow*);
     virtual bool                     isWindowTiled(CWindow*);
     virtual void                     recalculateMonitor(const int&);
@@ -57,6 +59,7 @@ class CRiverLayout : public IHyprLayout {
     virtual std::any                 layoutMessage(SLayoutMessageHeader, std::string);
     virtual SWindowRenderLayoutHints requestRenderHints(CWindow*);
     virtual void                     switchWindows(CWindow*, CWindow*);
+		virtual void 										 moveWindowTo(CWindow *, const std::string& dir);
     virtual void                     alterSplitRatio(CWindow*, float, bool);
     virtual std::string              getLayoutName();
     virtual void                     replaceWindowDataWith(CWindow* from, CWindow* to);
