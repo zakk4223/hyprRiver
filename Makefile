@@ -1,6 +1,5 @@
-# compile with HYPRLAND_HEADERS=<path_to_hl> make all
-# make sure that the path above is to the root hl repo directory, NOT src/
-# and that you have ran `make protocols` in the hl dir.
+PLUGIN_NAME=riverLayoutPlugin
+INSTALL_LOCATION=${HOME}/.local/share/hyprload/plugins/bin
 
 WAYLAND_SCANNER=$(shell pkg-config --variable=wayland_scanner wayland-scanner)
 
@@ -21,10 +20,14 @@ protocol: river-layout-v3-protocol.o
 
 
 all: protocol $(OBJS) 
-	g++ -shared -fPIC -o riverLayoutPlugin.so -g $(OBJS) 
+	g++ -shared -fPIC -o $(PLUGIN_NAME).so -g $(OBJS) 
+
+install: all
+	mkdir -p ${INSTALL_LOCATION}
+	cp $(PLUGIN_NAME).so ${INSTALL_LOCATION}
 
 clean:
-	rm ./riverLayoutPlugin.so
+	rm ./$(PLUGIN_NAME).so
 	rm $(OBJS)
 	rm river-layout-v3-protocol.h
 	rm river-layout-v3-protocol.c

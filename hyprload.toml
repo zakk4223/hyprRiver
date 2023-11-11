@@ -1,0 +1,10 @@
+[hyprRiver]
+description = "River layouts for hyprland"
+version = "1.0.0"
+author = "zakk4223"
+
+[hyprRiver.build]
+output = "riverLayoutPlugin.so"
+steps = [
+    "make install",
+]
