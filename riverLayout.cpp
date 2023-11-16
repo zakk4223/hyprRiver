@@ -370,7 +370,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     calcSize            = calcSize - (RESERVED.topLeft + RESERVED.bottomRight);
 
     if (g_pCompositor->isWorkspaceSpecial(PWINDOW->m_iWorkspaceID)) {
-        static auto* const PSCALEFACTOR = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:nstack:layout:special_scale_factor")->floatValue;
+        static auto* const PSCALEFACTOR = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:river:layout:special_scale_factor")->floatValue;
 
         CBox               wb = {calcPos + (calcSize - calcSize * *PSCALEFACTOR) / 2.f, calcSize * *PSCALEFACTOR};
         wb.round(); // avoid rounding mess
