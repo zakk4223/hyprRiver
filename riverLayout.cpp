@@ -627,9 +627,7 @@ std::any CRiverLayout::layoutMessage(SLayoutMessageHeader header, std::string me
 
   const auto RESOURCE = std::find_if(m_lRiverLayoutResources.begin(), m_lRiverLayoutResources.end(), [&](const auto &rres) { return rres.monitorID == header.pWindow->m_iMonitorID;});
   if (RESOURCE != m_lRiverLayoutResources.end()) {
-	if (m_sRiverNamespace != "kile") {
-      		g_pRiverLayoutProtocolManager->sendUserCommandTags(RESOURCE->resource, 1);
-	}
+   		g_pRiverLayoutProtocolManager->sendUserCommandTags(RESOURCE->resource, 1);
       g_pRiverLayoutProtocolManager->sendUserCommand(RESOURCE->resource, message.c_str());
       recalculateMonitor(header.pWindow->m_iMonitorID);
   }
