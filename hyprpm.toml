@@ -1,0 +1,11 @@
+[repository]
+name = "hyprRiver"
+authors = ["Zakk"]
+
+[hyprRiver]
+description = "River tiling for Hyprland"
+authors = ["Zakk"]
+output = "riverLayoutPlugin.so"
+build = [
+	"make all"
+]

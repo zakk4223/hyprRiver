@@ -329,9 +329,6 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 		PWINDOW->updateSpecialRenderData();
 		
 
-		
-
-
     const auto* PGAPSIN     = &g_pConfigManager->getConfigValuePtr("general:gaps_in")->intValue;
     const auto* PGAPSOUT    = &g_pConfigManager->getConfigValuePtr("general:gaps_out")->intValue;
 		static auto* const PANIMATE = &g_pConfigManager->getConfigValuePtr("misc:animate_manual_resizes")->intValue;
@@ -350,13 +347,8 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     PWINDOW->m_vSize     = pNode->size;
     PWINDOW->m_vPosition = pNode->position;
 
-    //auto calcPos  = PWINDOW->m_vPosition + Vector2D(*PBORDERSIZE, *PBORDERSIZE);
-    //auto calcSize = PWINDOW->m_vSize - Vector2D(2 * *PBORDERSIZE, 2 * *PBORDERSIZE);
-
-    const int  BORDERSIZE = PWINDOW->getRealBorderSize();
-
-    auto       calcPos  = PWINDOW->m_vPosition + Vector2D(BORDERSIZE, BORDERSIZE);
-    auto       calcSize = PWINDOW->m_vSize - Vector2D(2 * BORDERSIZE, 2 * BORDERSIZE);
+    auto       calcPos  = PWINDOW->m_vPosition;
+    auto       calcSize = PWINDOW->m_vSize;
 
     const auto OFFSETTOPLEFT = Vector2D(DISPLAYLEFT ? gapsOut : gapsIn, DISPLAYTOP ? gapsOut : gapsIn);
 

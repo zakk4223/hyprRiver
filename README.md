@@ -6,7 +6,6 @@ This was mostly a proof of concept/because I can thing. It _is_ usable, with the
 
 - You cannot have any workspace specific layout settings. Hyrpland and River do not use the same workspace model, so river layout providers have no idea how to track per-workspace settings.
 - You cannot resize tiled windows. They will just get forced floating if you try (same as River)
-- River expects the layout provider to handle inner/out gaps. This plugin does the same. This means Hyprland's global gaps setting is ignored for any layouts provided via this plugin.
 
 River layouts provide a 'namespace' to the wayland server; this namespace is used to create a layout with the same name in Hyprland.
 You can change to that layout by modifying the value of general:layout
@@ -20,8 +19,9 @@ All 'layoutmsg' dispatch commands are sent directly to the appropriate river lay
 - [rivercarro](https://sr.ht/~novakane/rivercarro/)
 
 
-Note: Currently kile advertises the incorrect protocol version to the server. This causes it to die with an unhandled message exception anytime a layoutmsg is sent to it.
+### Installation
 
-The plugin hardcodes an except for the 'kile' namespace so it won't send the unhandled message. Using kile's command line option to change the namespace will likely break things.
-(kile is currently broken in River due to the same bug)
+## Using hyprpm, Hyprland's official plugin manager (recommended)
+1. Run `hyprpm add https://github.com/zakk4223/hyprRiver` and wait for hyprpm to build the plugin.
+2. Run `hyprpm enable hyprRiver`
 
