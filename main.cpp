@@ -27,5 +27,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
-    HyprlandAPI::invokeHyprctlCommand("seterror", "disable");
+		g_pRiverLayoutProtocolManager.reset();
+	HyprlandAPI::invokeHyprctlCommand("seterror", "disable");
+
+
+
 }

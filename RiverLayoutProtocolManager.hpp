@@ -11,6 +11,7 @@ class CRiverLayout;
 class CRiverLayoutProtocolManager {
 	public:
 		CRiverLayoutProtocolManager();
+	 ~CRiverLayoutProtocolManager();
 		void bindManager(wl_client *client, void *data, uint32_t version, uint32_t id);
 		void displayDestroy();
 		void getLayout(wl_client *client, wl_resource *resource, uint32_t id, wl_resource *output, const char *r_namespace);

@@ -64,8 +64,13 @@ static void handleLayoutDestroy(wl_resource *resource) {
   }
 }
 
-CRiverLayoutProtocolManager::CRiverLayoutProtocolManager() {
 
+CRiverLayoutProtocolManager::~CRiverLayoutProtocolManager() {
+	wl_list_remove(&m_liDisplayDestroy.link);
+}
+
+
+CRiverLayoutProtocolManager::CRiverLayoutProtocolManager() {
 	m_pGlobal = wl_global_create(g_pCompositor->m_sWLDisplay, &river_layout_manager_v3_interface, 2, this, bindManagerInt);
 	if (!m_pGlobal) {
 		Debug::log(LOG, "RiverLayout could not start!");
