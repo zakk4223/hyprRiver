@@ -1,6 +1,9 @@
 [repository]
 name = "hyprRiver"
 authors = ["Zakk"]
+commit_pins = [
+	["03ebbe18ed8517ee22591eac82cd54322f42cb7d", "2cf61ecab432bea378c1525a0a8fcfc7444742d1"]
+]
 
 [hyprRiver]
 description = "River tiling for Hyprland"
