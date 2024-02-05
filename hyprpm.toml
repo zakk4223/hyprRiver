@@ -2,7 +2,8 @@
 name = "hyprRiver"
 authors = ["Zakk"]
 commit_pins = [
-	["03ebbe18ed8517ee22591eac82cd54322f42cb7d", "2cf61ecab432bea378c1525a0a8fcfc7444742d1"]
+	["03ebbe18ed8517ee22591eac82cd54322f42cb7d", "2cf61ecab432bea378c1525a0a8fcfc7444742d1"],
+	["84ab8d11e8951a6551d1e1bf87796a8589da6d47", "e6f0af5d13494109f3e62fc040a5a183307805ca" ]
 ]
 
 [hyprRiver]
