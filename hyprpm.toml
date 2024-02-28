@@ -3,7 +3,8 @@ name = "hyprRiver"
 authors = ["Zakk"]
 commit_pins = [
 	["03ebbe18ed8517ee22591eac82cd54322f42cb7d", "2cf61ecab432bea378c1525a0a8fcfc7444742d1"],
-	["84ab8d11e8951a6551d1e1bf87796a8589da6d47", "e6f0af5d13494109f3e62fc040a5a183307805ca" ]
+	["84ab8d11e8951a6551d1e1bf87796a8589da6d47", "e6f0af5d13494109f3e62fc040a5a183307805ca" ],
+	["1c460e98f870676b15871fe4e5bfeb1a32a3d6d8", "cf584fc058eb8a91e302a591cffdd184aafb82ba"]
 ]
 
 [hyprRiver]
