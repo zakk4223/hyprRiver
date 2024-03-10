@@ -177,7 +177,7 @@ void CRiverLayout::onWindowRemovedTiling(CWindow* pWindow) {
 
     m_lMasterNodesData.remove(*PNODE);
 
-    m_vRemovedWindowVector = pWindow->m_vRealPosition.goalv() + pWindow->m_vRealSize.goalv() / 2.f;
+    m_vRemovedWindowVector = pWindow->m_vRealPosition.goal() + pWindow->m_vRealSize.goal() / 2.f;
 
 
     recalculateMonitor(pWindow->m_iMonitorID);
@@ -450,10 +450,10 @@ void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode 
 
         // save position and size if floating
         if (pWindow->m_bIsFloating) {
-            pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize.goalv();
-            pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition.goalv();
-            pWindow->m_vPosition             = pWindow->m_vRealPosition.goalv();
-            pWindow->m_vSize                 = pWindow->m_vRealSize.goalv();
+            pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize.goal();
+            pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition.goal();
+            pWindow->m_vPosition             = pWindow->m_vRealPosition.goal();
+            pWindow->m_vSize                 = pWindow->m_vRealSize.goal();
         }
 
         // apply new pos and size being monitors' box
@@ -480,7 +480,7 @@ void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode 
 
     g_pCompositor->updateWindowAnimatedDecorationValues(pWindow);
 
-    g_pXWaylandManager->setWindowSize(pWindow, pWindow->m_vRealSize.goalv());
+    g_pXWaylandManager->setWindowSize(pWindow, pWindow->m_vRealSize.goal());
 
     g_pCompositor->changeWindowZOrder(pWindow, true);
 
