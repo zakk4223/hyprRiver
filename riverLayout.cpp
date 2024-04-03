@@ -286,6 +286,42 @@ void CRiverLayout::riverCommit(const char *layout_name, uint32_t serial) {
 	}
 }
 
+SWorkspaceRule getMergedWorkspaceRule(CWorkspace *workspace) {
+	SWorkspaceRule retRule{};
+
+	retRule.isPersistent = false;
+	const auto WORKSPACERULES = g_pConfigManager->getWorkspaceRulesFor(workspace);
+	for (auto& wsrule  : WORKSPACERULES) {
+		if (wsrule.isPersistent)
+			retRule.isPersistent = true;
+		if (wsrule.gapsIn.has_value())
+			retRule.gapsIn = wsrule.gapsIn;
+		if (wsrule.gapsOut.has_value())
+			retRule.gapsOut = wsrule.gapsOut;
+		if (wsrule.borderSize.has_value())
+			retRule.borderSize = wsrule.borderSize;
+		if (wsrule.border.has_value())
+			retRule.border = wsrule.border;
+		if (wsrule.rounding.has_value())
+			retRule.rounding = wsrule.rounding;
+		if (wsrule.decorate.has_value())
+			retRule.decorate = wsrule.decorate;
+		if (wsrule.shadow.has_value())
+			retRule.shadow = wsrule.shadow;
+		if (wsrule.onCreatedEmptyRunCmd.has_value())
+			retRule.onCreatedEmptyRunCmd = wsrule.onCreatedEmptyRunCmd;
+
+		if (!wsrule.layoutopts.empty()) {
+			for (const auto &lopt : wsrule.layoutopts) {
+				retRule.layoutopts[lopt.first] = lopt.second;
+			}
+		}
+	}
+
+	return retRule;
+
+}
+
 
 void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
@@ -314,7 +350,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     const bool DISPLAYBOTTOM = STICKS(pNode->position.y + pNode->size.y, PMONITOR->vecPosition.y + PMONITOR->vecSize.y - PMONITOR->vecReservedBottomRight.y);
 
     const auto PWINDOW = pNode->pWindow;
-		const auto WORKSPACERULE = g_pConfigManager->getWorkspaceRuleFor(g_pCompositor->getWorkspaceByID(PWINDOW->m_iWorkspaceID));
+		const auto WORKSPACERULE = getMergedWorkspaceRule(g_pCompositor->getWorkspaceByID(PWINDOW->m_iWorkspaceID));
 
 		if (PWINDOW->m_bIsFullscreen && !pNode->ignoreFullscreenChecks)
 			return;
@@ -532,6 +568,10 @@ void CRiverLayout::switchWindows(CWindow* pWindow, CWindow* pWindow2) {
     g_pHyprRenderer->damageWindow(pWindow2);
 
     prepareNewFocus(pWindow2, inheritFullscreen);
+}
+
+Vector2D  predictSizeForNewWindowTiled() {
+	return {}; //whatever
 }
 
 void CRiverLayout::alterSplitRatio(CWindow* pWindow, float ratio, bool exact) {

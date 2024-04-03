@@ -71,6 +71,7 @@ class CRiverLayout : public IHyprLayout {
     bool                              addRiverLayoutResource(wl_resource *resource, uint64_t monitorID); 
     int                              removeRiverLayoutResource(wl_resource *resource);
     int                              getRiverLayoutResourceCount();
+    virtual Vector2D 								 predictSizeForNewWindowTiled();
 
         
 
