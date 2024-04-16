@@ -4,6 +4,7 @@
 
 #include "globals.hpp"
 #include "RiverLayoutProtocolManager.hpp"
+#include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/layout/IHyprLayout.hpp>
 #include <vector>
 #include <list>
@@ -91,7 +92,7 @@ class CRiverLayout : public IHyprLayout {
     void                              resetNodeSplits(const int&);
     SRiverNodeData*                  getNodeFromWindow(CWindow*);
     SRiverWorkspaceData*             getMasterWorkspaceData(const int&);
-    void                              calculateWorkspace(const int&);
+    void                              calculateWorkspace(PHLWORKSPACE);
     CWindow*                          getNextWindow(CWindow*, bool);
     int                               getMastersOnWorkspace(const int&);
     bool                              prepareLoseFocus(CWindow*);

@@ -77,10 +77,10 @@ void CRiverLayout::moveWindowTo(CWindow* pWindow, const std::string& dir) {
         return;
 
     const auto PWINDOW2 = g_pCompositor->getWindowInDirection(pWindow, dir[0]);
-		if (pWindow->m_iWorkspaceID != PWINDOW2->m_iWorkspaceID) {
+		if (pWindow->m_pWorkspace != PWINDOW2->m_pWorkspace) {
  		// if different monitors, send to monitor
 		onWindowRemovedTiling(pWindow);
-		pWindow->moveToWorkspace(PWINDOW2->m_iWorkspaceID);
+		pWindow->moveToWorkspace(PWINDOW2->m_pWorkspace);
 		pWindow->m_iMonitorID = PWINDOW2->m_iMonitorID;
 		onWindowCreatedTiling(pWindow);
     } else {
@@ -101,7 +101,7 @@ void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction)
     //const auto         PNODE = *PNEWTOP ? &m_lMasterNodesData.emplace_front() : &m_lMasterNodesData.emplace_back();
     const auto PNODE = &m_lMasterNodesData.emplace_front();
 
-    PNODE->workspaceID = pWindow->m_iWorkspaceID;
+    PNODE->workspaceID = pWindow->workspaceID();
     PNODE->pWindow     = pWindow;
 
     //static auto* const PNEWISMASTER = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:river:layout:new_is_master")->intValue;
@@ -185,15 +185,15 @@ void CRiverLayout::onWindowRemovedTiling(CWindow* pWindow) {
 
 void CRiverLayout::recalculateMonitor(const int& monid) {
     const auto PMONITOR   = g_pCompositor->getMonitorFromID(monid);
-    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(PMONITOR->activeWorkspace);
+    const auto PWORKSPACE = PMONITOR->activeWorkspace;
 
     if (!PWORKSPACE)
         return;
 
     g_pHyprRenderer->damageMonitor(PMONITOR);
 
-    if (PMONITOR->specialWorkspaceID) {
-        calculateWorkspace(PMONITOR->specialWorkspaceID);
+    if (PMONITOR->activeSpecialWorkspace) {
+        calculateWorkspace(PMONITOR->activeSpecialWorkspace);
     }
 
     if (PWORKSPACE->m_bHasFullscreenWindow) {
@@ -217,22 +217,21 @@ void CRiverLayout::recalculateMonitor(const int& monid) {
     }
 
     // calc the WS
-    calculateWorkspace(PWORKSPACE->m_iID);
+    calculateWorkspace(PWORKSPACE);
 }
 
-void CRiverLayout::calculateWorkspace(const int& ws) {
-    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(ws);
+void CRiverLayout::calculateWorkspace(PHLWORKSPACE pWorkspace) {
     static uint32_t use_serial = 1;
     uint32_t new_serial = use_serial++;
 
-    if (!PWORKSPACE)
+    if (!pWorkspace)
         return;
 
-    const auto         PMONITOR = g_pCompositor->getMonitorFromID(PWORKSPACE->m_iMonitorID);
-    const uint32_t num_nodes = getNodesOnWorkspace(PWORKSPACE->m_iID);
+    const auto         PMONITOR = g_pCompositor->getMonitorFromID(pWorkspace->m_iMonitorID);
+    const uint32_t num_nodes = getNodesOnWorkspace(pWorkspace->m_iID);
     //record serial so we know if we're done
     for (auto& nd : m_lMasterNodesData) {
-	    if (nd.workspaceID != PWORKSPACE->m_iID)
+	    if (nd.workspaceID != pWorkspace->m_iID)
 		    continue;
 	    nd.riverSerial = new_serial;
 	    nd.riverDone = false;
@@ -286,42 +285,6 @@ void CRiverLayout::riverCommit(const char *layout_name, uint32_t serial) {
 	}
 }
 
-SWorkspaceRule getMergedWorkspaceRule(CWorkspace *workspace) {
-	SWorkspaceRule retRule{};
-
-	retRule.isPersistent = false;
-	const auto WORKSPACERULES = g_pConfigManager->getWorkspaceRulesFor(workspace);
-	for (auto& wsrule  : WORKSPACERULES) {
-		if (wsrule.isPersistent)
-			retRule.isPersistent = true;
-		if (wsrule.gapsIn.has_value())
-			retRule.gapsIn = wsrule.gapsIn;
-		if (wsrule.gapsOut.has_value())
-			retRule.gapsOut = wsrule.gapsOut;
-		if (wsrule.borderSize.has_value())
-			retRule.borderSize = wsrule.borderSize;
-		if (wsrule.border.has_value())
-			retRule.border = wsrule.border;
-		if (wsrule.rounding.has_value())
-			retRule.rounding = wsrule.rounding;
-		if (wsrule.decorate.has_value())
-			retRule.decorate = wsrule.decorate;
-		if (wsrule.shadow.has_value())
-			retRule.shadow = wsrule.shadow;
-		if (wsrule.onCreatedEmptyRunCmd.has_value())
-			retRule.onCreatedEmptyRunCmd = wsrule.onCreatedEmptyRunCmd;
-
-		if (!wsrule.layoutopts.empty()) {
-			for (const auto &lopt : wsrule.layoutopts) {
-				retRule.layoutopts[lopt.first] = lopt.second;
-			}
-		}
-	}
-
-	return retRule;
-
-}
-
 
 void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
@@ -329,7 +292,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
     if (g_pCompositor->isWorkspaceSpecial(pNode->workspaceID)) {
         for (auto& m : g_pCompositor->m_vMonitors) {
-            if (m->specialWorkspaceID == pNode->workspaceID) {
+            if (m->activeSpecialWorkspaceID() == pNode->workspaceID) {
                 PMONITOR = m.get();
                 break;
             }
@@ -350,7 +313,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     const bool DISPLAYBOTTOM = STICKS(pNode->position.y + pNode->size.y, PMONITOR->vecPosition.y + PMONITOR->vecSize.y - PMONITOR->vecReservedBottomRight.y);
 
     const auto PWINDOW = pNode->pWindow;
-		const auto WORKSPACERULE = getMergedWorkspaceRule(g_pCompositor->getWorkspaceByID(PWINDOW->m_iWorkspaceID));
+		const auto WORKSPACERULE = g_pConfigManager->getWorkspaceRuleFor(g_pCompositor->getWorkspaceByID(PWINDOW->workspaceID()));
 
 		if (PWINDOW->m_bIsFullscreen && !pNode->ignoreFullscreenChecks)
 			return;
@@ -391,7 +354,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     calcPos             = calcPos + RESERVED.topLeft;
     calcSize            = calcSize - (RESERVED.topLeft + RESERVED.bottomRight);
 
-    if (g_pCompositor->isWorkspaceSpecial(PWINDOW->m_iWorkspaceID)) {
+    if (g_pCompositor->isWorkspaceSpecial(PWINDOW->workspaceID())) {
         static auto* const PSCALEFACTOR = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:river:layout:special_scale_factor")->getDataStaticPtr();
 
         CBox               wb = {calcPos + (calcSize - calcSize * **PSCALEFACTOR) / 2.f, calcSize * **PSCALEFACTOR};
@@ -443,11 +406,11 @@ void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode 
     if (!g_pCompositor->windowValidMapped(pWindow))
         return;
 
-    if (on == pWindow->m_bIsFullscreen || g_pCompositor->isWorkspaceSpecial(pWindow->m_iWorkspaceID))
+    if (on == pWindow->m_bIsFullscreen || g_pCompositor->isWorkspaceSpecial(pWindow->workspaceID()))
         return; // ignore
 
     const auto PMONITOR   = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
-    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(pWindow->m_iWorkspaceID);
+    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(pWindow->workspaceID());
 
     if (PWORKSPACE->m_bHasFullscreenWindow && on) {
         // if the window wants to be fullscreen but there already is one,
@@ -505,7 +468,7 @@ void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode 
             fakeNode.pWindow     = pWindow;
             fakeNode.position    = PMONITOR->vecPosition + PMONITOR->vecReservedTopLeft;
             fakeNode.size        = PMONITOR->vecSize - PMONITOR->vecReservedTopLeft - PMONITOR->vecReservedBottomRight;
-            fakeNode.workspaceID = pWindow->m_iWorkspaceID;
+            fakeNode.workspaceID = pWindow->workspaceID();
             pWindow->m_vPosition = fakeNode.position;
             pWindow->m_vSize     = fakeNode.size;
 						fakeNode.ignoreFullscreenChecks = true;
@@ -553,7 +516,7 @@ void CRiverLayout::switchWindows(CWindow* pWindow, CWindow* pWindow2) {
 
     if (PNODE->workspaceID != PNODE2->workspaceID) {
         std::swap(pWindow2->m_iMonitorID, pWindow->m_iMonitorID);
-        std::swap(pWindow2->m_iWorkspaceID, pWindow->m_iWorkspaceID);
+        std::swap(pWindow2->m_pWorkspace, pWindow->m_pWorkspace);
     }
 
     // massive hack: just swap window pointers, lol
@@ -586,7 +549,7 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
 
     if (next) {
             for (auto n : m_lMasterNodesData) {
-                if (n.pWindow != pWindow && n.workspaceID == pWindow->m_iWorkspaceID) {
+                if (n.pWindow != pWindow && n.workspaceID == pWindow->workspaceID()) {
                     return n.pWindow;
                 }
             }
@@ -599,7 +562,7 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
                     continue;
                 }
 
-                if (n.workspaceID == pWindow->m_iWorkspaceID && reached) {
+                if (n.workspaceID == pWindow->workspaceID() && reached) {
                     return n.pWindow;
                 }
             }
@@ -613,7 +576,7 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
                     continue;
                 }
 
-                if (it->workspaceID == pWindow->m_iWorkspaceID && reached) {
+                if (it->workspaceID == pWindow->workspaceID() && reached) {
                     return it->pWindow;
                 }
             }
@@ -641,7 +604,7 @@ void CRiverLayout::prepareNewFocus(CWindow* pWindow, bool inheritFullscreen) {
         return;
 
     if (inheritFullscreen)
-        g_pCompositor->setWindowFullscreen(pWindow, true, g_pCompositor->getWorkspaceByID(pWindow->m_iWorkspaceID)->m_efFullscreenMode);
+        g_pCompositor->setWindowFullscreen(pWindow, true, g_pCompositor->getWorkspaceByID(pWindow->workspaceID())->m_efFullscreenMode);
 }
 
 std::any CRiverLayout::layoutMessage(SLayoutMessageHeader header, std::string message) {
