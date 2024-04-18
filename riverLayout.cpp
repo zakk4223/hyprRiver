@@ -72,22 +72,30 @@ std::string CRiverLayout::getLayoutName() {
     return m_sRiverNamespace; 
 }
 
-void CRiverLayout::moveWindowTo(CWindow* pWindow, const std::string& dir) {
+void CRiverLayout::moveWindowTo(CWindow* pWindow, const std::string& dir, bool silent) {
+		if (!pWindow) return;
     if (!isDirection(dir))
         return;
 
     const auto PWINDOW2 = g_pCompositor->getWindowInDirection(pWindow, dir[0]);
 		if (pWindow->m_pWorkspace != PWINDOW2->m_pWorkspace) {
- 		// if different monitors, send to monitor
-		onWindowRemovedTiling(pWindow);
-		pWindow->moveToWorkspace(PWINDOW2->m_pWorkspace);
-		pWindow->m_iMonitorID = PWINDOW2->m_iMonitorID;
-		onWindowCreatedTiling(pWindow);
+ 			// if different monitors, send to monitor
+			onWindowRemovedTiling(pWindow);
+			pWindow->moveToWorkspace(PWINDOW2->m_pWorkspace);
+			pWindow->m_iMonitorID = PWINDOW2->m_iMonitorID;
+			if (!silent) {
+				const auto pMonitor = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
+				g_pCompositor->setActiveMonitor(pMonitor);
+			}
+			onWindowCreatedTiling(pWindow);
     } else {
         // if same monitor, switch windows
         switchWindows(pWindow, PWINDOW2);
+				if (silent)
+					g_pCompositor->focusWindow(PWINDOW2);
 		}
 }
+
 
 void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction) {
     m_vRemovedWindowVector = Vector2D(0.f, 0.f);
