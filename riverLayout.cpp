@@ -10,9 +10,9 @@ CRiverLayout::CRiverLayout(const char *r_namespace) {
 
 	m_sRiverNamespace = r_namespace;
 }
-SRiverNodeData* CRiverLayout::getNodeFromWindow(CWindow* pWindow) {
+SRiverNodeData* CRiverLayout::getNodeFromWindow(PHLWINDOW pWindow) {
     for (auto& nd : m_lMasterNodesData) {
-        if (nd.pWindow == pWindow)
+        if (nd.pWindow.lock() == pWindow)
             return &nd;
     }
 
@@ -72,7 +72,7 @@ std::string CRiverLayout::getLayoutName() {
     return m_sRiverNamespace; 
 }
 
-void CRiverLayout::moveWindowTo(CWindow* pWindow, const std::string& dir, bool silent) {
+void CRiverLayout::moveWindowTo(PHLWINDOW pWindow, const std::string& dir, bool silent) {
 		if (!pWindow) return;
     if (!isDirection(dir))
         return;
@@ -97,7 +97,7 @@ void CRiverLayout::moveWindowTo(CWindow* pWindow, const std::string& dir, bool s
 }
 
 
-void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction) {
+void CRiverLayout::onWindowCreatedTiling(PHLWINDOW pWindow, eDirection direction) {
     m_vRemovedWindowVector = Vector2D(0.f, 0.f);
     if (pWindow->m_bIsFloating)
         return;
@@ -116,29 +116,28 @@ void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction)
 
     const auto         WINDOWSONWORKSPACE = getNodesOnWorkspace(PNODE->workspaceID);
 
-    auto               OPENINGON = getNodeFromWindow(g_pCompositor->m_pLastWindow);
+    auto               OPENINGON = getNodeFromWindow(g_pCompositor->m_pLastWindow.lock());
 
 		const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
 		if (g_pInputManager->m_bWasDraggingWindow && OPENINGON) {
-			if (OPENINGON->pWindow->checkInputOnDecos(INPUT_TYPE_DRAG_END, MOUSECOORDS, pWindow))
+			if (OPENINGON->pWindow.lock()->checkInputOnDecos(INPUT_TYPE_DRAG_END, MOUSECOORDS, pWindow))
 				return;
 		}
 
-    if (OPENINGON && OPENINGON != PNODE && OPENINGON->pWindow->m_sGroupData.pNextWindow // target is group
-        && pWindow->canBeGroupedInto(OPENINGON->pWindow)) {
-
-        if (!pWindow->m_sGroupData.pNextWindow)
-            pWindow->m_dWindowDecorations.emplace_back(std::make_unique<CHyprGroupBarDecoration>(pWindow));
+    if (OPENINGON && OPENINGON != PNODE && OPENINGON->pWindow.lock()->m_sGroupData.pNextWindow.lock() // target is group
+        && pWindow->canBeGroupedInto(OPENINGON->pWindow.lock())) {
 
         m_lMasterNodesData.remove(*PNODE);
 
         static const auto* USECURRPOS = (Hyprlang::INT* const*)g_pConfigManager->getConfigValuePtr("group:insert_after_current");
-        (**USECURRPOS ? OPENINGON->pWindow : OPENINGON->pWindow->getGroupTail())->insertWindowToGroup(pWindow);
+        (**USECURRPOS ? OPENINGON->pWindow.lock() : OPENINGON->pWindow.lock()->getGroupTail())->insertWindowToGroup(pWindow);
 
-        OPENINGON->pWindow->setGroupCurrent(pWindow);
+        OPENINGON->pWindow.lock()->setGroupCurrent(pWindow);
         pWindow->applyGroupRules();
         pWindow->updateWindowDecos();
         recalculateWindow(pWindow);
+		    if (!pWindow->getDecorationByType(DECORATION_GROUPBAR))
+			    pWindow->addWindowDeco(std::make_unique<CHyprGroupBarDecoration>(pWindow));
 
         return;
     }
@@ -169,7 +168,7 @@ void CRiverLayout::onWindowCreatedTiling(CWindow* pWindow, eDirection direction)
     recalculateMonitor(pWindow->m_iMonitorID);
 }
 
-void CRiverLayout::onWindowRemovedTiling(CWindow* pWindow) {
+void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
     const auto PNODE = getNodeFromWindow(pWindow);
 
     if (!PNODE)
@@ -262,7 +261,7 @@ void CRiverLayout::riverViewDimensions(int32_t x, int32_t y, uint32_t width, uin
 		if (nd.riverDone)
 			continue;
 
-		const auto PMONITOR = g_pCompositor->getMonitorFromID(nd.pWindow->m_iMonitorID);
+		const auto PMONITOR = g_pCompositor->getMonitorFromID(nd.pWindow.lock()->m_iMonitorID);
 		nd.position = PMONITOR->vecPosition  + PMONITOR->vecReservedTopLeft + Vector2D(x+0.0f, y+0.0f);
 		nd.size = Vector2D(width+0.0f, height+0.0f);
 		nd.riverDone = true;
@@ -320,7 +319,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     const bool DISPLAYTOP    = STICKS(pNode->position.y, PMONITOR->vecPosition.y + PMONITOR->vecReservedTopLeft.y);
     const bool DISPLAYBOTTOM = STICKS(pNode->position.y + pNode->size.y, PMONITOR->vecPosition.y + PMONITOR->vecSize.y - PMONITOR->vecReservedBottomRight.y);
 
-    const auto PWINDOW = pNode->pWindow;
+    const auto PWINDOW = pNode->pWindow.lock();
 		const auto WORKSPACERULE = g_pConfigManager->getWorkspaceRuleFor(g_pCompositor->getWorkspaceByID(PWINDOW->workspaceID()));
 
 		if (PWINDOW->m_bIsFullscreen && !pNode->ignoreFullscreenChecks)
@@ -339,8 +338,8 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
 
 
-    if (!g_pCompositor->windowValidMapped(PWINDOW)) {
-        Debug::log(ERR, "Node {} holding invalid window {}!!", static_cast<void *>(pNode), static_cast<void *>(PWINDOW));
+    if (!validMapped(PWINDOW)) {
+        Debug::log(ERR, "Node {} holding invalid window {}!!", pNode, PWINDOW);
         return;
     }
 
@@ -394,11 +393,11 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
 }
 
-bool CRiverLayout::isWindowTiled(CWindow* pWindow) {
+bool CRiverLayout::isWindowTiled(PHLWINDOW pWindow) {
     return getNodeFromWindow(pWindow) != nullptr;
 }
 
-void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner corner, CWindow* pWindow) {
+void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner corner, PHLWINDOW pWindow) {
 
   //River's tiling paradigm has no concept of being able to manually resize windows in a stack/area etc. 
   //If you try to resize a window it just forces it to float. Do the same thing here
@@ -410,8 +409,8 @@ void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner cor
 
 }
 
-void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode fullscreenMode, bool on) {
-    if (!g_pCompositor->windowValidMapped(pWindow))
+void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, eFullscreenMode fullscreenMode, bool on) {
+    if (!validMapped(pWindow))
         return;
 
     if (on == pWindow->m_bIsFullscreen || g_pCompositor->isWorkspaceSpecial(pWindow->workspaceID()))
@@ -494,7 +493,7 @@ void CRiverLayout::fullscreenRequestForWindow(CWindow* pWindow, eFullscreenMode 
     recalculateMonitor(PMONITOR->ID);
 }
 
-void CRiverLayout::recalculateWindow(CWindow* pWindow) {
+void CRiverLayout::recalculateWindow(PHLWINDOW pWindow) {
     const auto PNODE = getNodeFromWindow(pWindow);
 
     if (!PNODE)
@@ -503,7 +502,7 @@ void CRiverLayout::recalculateWindow(CWindow* pWindow) {
     recalculateMonitor(pWindow->m_iMonitorID);
 }
 
-SWindowRenderLayoutHints CRiverLayout::requestRenderHints(CWindow* pWindow) {
+SWindowRenderLayoutHints CRiverLayout::requestRenderHints(PHLWINDOW pWindow) {
     // window should be valid, insallah
 
     SWindowRenderLayoutHints hints;
@@ -511,7 +510,7 @@ SWindowRenderLayoutHints CRiverLayout::requestRenderHints(CWindow* pWindow) {
     return hints; // master doesnt have any hints
 }
 
-void CRiverLayout::switchWindows(CWindow* pWindow, CWindow* pWindow2) {
+void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
     // windows should be valid, insallah
 
     const auto PNODE  = getNodeFromWindow(pWindow);
@@ -545,11 +544,11 @@ Vector2D  predictSizeForNewWindowTiled() {
 	return {}; //whatever
 }
 
-void CRiverLayout::alterSplitRatio(CWindow* pWindow, float ratio, bool exact) {
+void CRiverLayout::alterSplitRatio(PHLWINDOW pWindow, float ratio, bool exact) {
     recalculateMonitor(pWindow->m_iMonitorID);
 }
 
-CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
+PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
     if (!isWindowTiled(pWindow))
         return nullptr;
 
@@ -557,21 +556,21 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
 
     if (next) {
             for (auto n : m_lMasterNodesData) {
-                if (n.pWindow != pWindow && n.workspaceID == pWindow->workspaceID()) {
-                    return n.pWindow;
+                if (n.pWindow.lock() != pWindow && n.workspaceID == pWindow->workspaceID()) {
+                    return n.pWindow.lock();
                 }
             }
             // focus next
             bool reached = false;
             bool found   = false;
             for (auto n : m_lMasterNodesData) {
-                if (n.pWindow == pWindow) {
+                if (n.pWindow.lock() == pWindow) {
                     reached = true;
                     continue;
                 }
 
                 if (n.workspaceID == pWindow->workspaceID() && reached) {
-                    return n.pWindow;
+                    return n.pWindow.lock();
                 }
             }
     } else {
@@ -579,13 +578,13 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
             bool reached = false;
             bool found   = false;
             for (auto it = m_lMasterNodesData.rbegin(); it != m_lMasterNodesData.rend(); it++) {
-                if (it->pWindow == pWindow) {
+                if (it->pWindow.lock() == pWindow) {
                     reached = true;
                     continue;
                 }
 
                 if (it->workspaceID == pWindow->workspaceID() && reached) {
-                    return it->pWindow;
+                    return it->pWindow.lock();
                 }
             }
         }
@@ -593,7 +592,7 @@ CWindow* CRiverLayout::getNextWindow(CWindow* pWindow, bool next) {
     return nullptr;
 }
 
-bool CRiverLayout::prepareLoseFocus(CWindow* pWindow) {
+bool CRiverLayout::prepareLoseFocus(PHLWINDOW pWindow) {
     if (!pWindow)
         return false;
 
@@ -607,7 +606,7 @@ bool CRiverLayout::prepareLoseFocus(CWindow* pWindow) {
     return false;
 }
 
-void CRiverLayout::prepareNewFocus(CWindow* pWindow, bool inheritFullscreen) {
+void CRiverLayout::prepareNewFocus(PHLWINDOW pWindow, bool inheritFullscreen) {
     if (!pWindow)
         return;
 
@@ -634,7 +633,7 @@ std::any CRiverLayout::layoutMessage(SLayoutMessageHeader header, std::string me
     return 0;
 }
 
-void CRiverLayout::replaceWindowDataWith(CWindow* from, CWindow* to) {
+void CRiverLayout::replaceWindowDataWith(PHLWINDOW from, PHLWINDOW to) {
     const auto PNODE = getNodeFromWindow(from);
 
     if (!PNODE)
@@ -650,7 +649,7 @@ void CRiverLayout::onEnable() {
         if (w->m_bIsFloating ||  !w->m_bIsMapped || w->isHidden())
             continue;
 
-        onWindowCreatedTiling(w.get());
+        onWindowCreatedTiling(w);
     }
 }
 

@@ -17,7 +17,7 @@ struct SRiverNodeData {
 
     uint32_t riverSerial;
     bool     riverDone;
-    CWindow* pWindow = nullptr;
+    PHLWINDOWREF pWindow;
 
     Vector2D position;
     Vector2D size;
@@ -29,7 +29,7 @@ struct SRiverNodeData {
 
 
     bool     operator==(const SRiverNodeData& rhs) const {
-        return pWindow == rhs.pWindow;
+        return pWindow.lock() == rhs.pWindow.lock();
     }
 };
 
@@ -50,20 +50,20 @@ class CRiverLayout : public IHyprLayout {
 
     CRiverLayout(const char *r_namespace);
     std::string			     m_sRiverNamespace = "";
-    virtual void                     onWindowCreatedTiling(CWindow*, eDirection direction = DIRECTION_DEFAULT);
-    virtual void                     onWindowRemovedTiling(CWindow*);
-    virtual bool                     isWindowTiled(CWindow*);
+    virtual void                     onWindowCreatedTiling(PHLWINDOW, eDirection direction = DIRECTION_DEFAULT);
+    virtual void                     onWindowRemovedTiling(PHLWINDOW);
+    virtual bool                     isWindowTiled(PHLWINDOW);
     virtual void                     recalculateMonitor(const int&);
-    virtual void                     recalculateWindow(CWindow*);
-    virtual void                     resizeActiveWindow(const Vector2D&, eRectCorner corner, CWindow* pWindow = nullptr);
-    virtual void                     fullscreenRequestForWindow(CWindow*, eFullscreenMode, bool);
+    virtual void                     recalculateWindow(PHLWINDOW);
+    virtual void                     resizeActiveWindow(const Vector2D&, eRectCorner corner, PHLWINDOW pWindow = nullptr);
+    virtual void                     fullscreenRequestForWindow(PHLWINDOW, eFullscreenMode, bool);
     virtual std::any                 layoutMessage(SLayoutMessageHeader, std::string);
-    virtual SWindowRenderLayoutHints requestRenderHints(CWindow*);
-    virtual void                     switchWindows(CWindow*, CWindow*);
-		virtual void 										 moveWindowTo(CWindow *, const std::string& dir, bool silent);
-    virtual void                     alterSplitRatio(CWindow*, float, bool);
+    virtual SWindowRenderLayoutHints requestRenderHints(PHLWINDOW);
+    virtual void                     switchWindows(PHLWINDOW, PHLWINDOW);
+		virtual void 										 moveWindowTo(PHLWINDOW, const std::string& dir, bool silent);
+    virtual void                     alterSplitRatio(PHLWINDOW, float, bool);
     virtual std::string              getLayoutName();
-    virtual void                     replaceWindowDataWith(CWindow* from, CWindow* to);
+    virtual void                     replaceWindowDataWith(PHLWINDOW from, PHLWINDOW to);
 
     virtual void                     onEnable();
     virtual void                     onDisable();
@@ -90,15 +90,28 @@ class CRiverLayout : public IHyprLayout {
     int                               getNodesOnWorkspace(const int&);
     void                              applyNodeDataToWindow(SRiverNodeData*);
     void                              resetNodeSplits(const int&);
-    SRiverNodeData*                  getNodeFromWindow(CWindow*);
+    SRiverNodeData*                  getNodeFromWindow(PHLWINDOW);
     SRiverWorkspaceData*             getMasterWorkspaceData(const int&);
     void                              calculateWorkspace(PHLWORKSPACE);
-    CWindow*                          getNextWindow(CWindow*, bool);
+    PHLWINDOW                          getNextWindow(PHLWINDOW, bool);
     int                               getMastersOnWorkspace(const int&);
-    bool                              prepareLoseFocus(CWindow*);
-    void                              prepareNewFocus(CWindow*, bool inherit_fullscreen);
+    bool                              prepareLoseFocus(PHLWINDOW);
+    void                              prepareNewFocus(PHLWINDOW, bool inherit_fullscreen);
 
     friend struct SRiverNodeData;
     friend struct SRiverWorkspaceData;
 };
 
+template <typename CharT>
+struct std::formatter<SRiverNodeData*, CharT> : std::formatter<CharT> {
+    template <typename FormatContext>
+    auto format(const SRiverNodeData* const& node, FormatContext& ctx) const {
+        auto out = ctx.out();
+        if (!node)
+            return std::format_to(out, "[Node nullptr]");
+        std::format_to(out, "[Node {:x}: workspace: {}, pos: {:j2}, size: {:j2}", (uintptr_t)node, node->workspaceID, node->position, node->size);
+        if (!node->pWindow.expired())
+            std::format_to(out, ", window: {:x}", node->pWindow.lock());
+        return std::format_to(out, "]");
+    }
+};
