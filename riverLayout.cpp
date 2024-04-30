@@ -540,7 +540,7 @@ void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
     prepareNewFocus(pWindow2, inheritFullscreen);
 }
 
-Vector2D  predictSizeForNewWindowTiled() {
+Vector2D  CRiverLayout::predictSizeForNewWindowTiled() {
 	return {}; //whatever
 }
 
