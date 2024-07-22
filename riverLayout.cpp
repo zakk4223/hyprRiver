@@ -175,9 +175,8 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
         return;
 
     m_vRemovedWindowVector = Vector2D(0.f, 0.f);
-    pWindow->m_sSpecialRenderData.rounding = true;
-    pWindow->m_sSpecialRenderData.border   = true;
-    pWindow->m_sSpecialRenderData.decorate = true;
+    pWindow->unsetWindowData(PRIORITY_LAYOUT);
+    pWindow->updateWindowData();
 
     if (pWindow->m_bIsFullscreen)
         g_pCompositor->setWindowFullscreen(pWindow, false, FULLSCREEN_FULL);
@@ -325,7 +324,8 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 		if (PWINDOW->m_bIsFullscreen && !pNode->ignoreFullscreenChecks)
 			return;
 
-		PWINDOW->updateSpecialRenderData();
+    PWINDOW->unsetWindowData(PRIORITY_LAYOUT);
+    PWINDOW->updateWindowData();
 		
     static auto* const PGAPSINDATA     = (Hyprlang::CUSTOMTYPE* const*)g_pConfigManager->getConfigValuePtr("general:gaps_in");
     static auto* const PGAPSOUTDATA    = (Hyprlang::CUSTOMTYPE* const*)g_pConfigManager->getConfigValuePtr("general:gaps_out");
@@ -445,9 +445,8 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, eFullscreenMode
             pWindow->m_vRealPosition = pWindow->m_vLastFloatingPosition;
             pWindow->m_vRealSize     = pWindow->m_vLastFloatingSize;
 
-            pWindow->m_sSpecialRenderData.rounding = true;
-            pWindow->m_sSpecialRenderData.border   = true;
-            pWindow->m_sSpecialRenderData.decorate = true;
+            pWindow->unsetWindowData(PRIORITY_LAYOUT);
+            pWindow->updateWindowData();
         }
     } else {
         // if it now got fullscreen, make it fullscreen

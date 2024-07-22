@@ -1,5 +1,6 @@
 #include "RiverLayoutProtocolManager.hpp"
 #include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/protocols/core/Output.hpp>
 #include "river-layout-v3-protocol.h"
 
 
@@ -110,7 +111,7 @@ void CRiverLayoutProtocolManager::bindManager(wl_client *client, void *data, uin
 //Since this is just a POC use one global layout per namespace
 
 void CRiverLayoutProtocolManager::getLayout(wl_client *client, wl_resource *resource, uint32_t id, wl_resource *output, const char *r_namespace) {
-  const auto OMONITOR = g_pCompositor->getMonitorFromOutput((wlr_output *)output->data);
+  const auto OMONITOR = CWLOutputResource::fromResource(output)->monitor;
   
 	const auto LAYOUT = std::find_if(m_vRiverLayouts.begin(), m_vRiverLayouts.end(), [&](const auto &layout) { return layout->m_sRiverNamespace == r_namespace; });
 
