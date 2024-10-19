@@ -31,7 +31,7 @@ int CRiverLayout::getNodesOnWorkspace(const int& ws) {
 
 
 
-bool CRiverLayout::addRiverLayoutResource(wl_resource *resource, uint64_t monitorID) {
+bool CRiverLayout::addRiverLayoutResource(wl_resource *resource, MONITORID monitorID) {
   for (auto &resm : m_lRiverLayoutResources) {
     if (monitorID == resm.monitorID) {
       return false;
@@ -178,8 +178,8 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
     pWindow->unsetWindowData(PRIORITY_LAYOUT);
     pWindow->updateWindowData();
 
-    if (pWindow->m_bIsFullscreen)
-        g_pCompositor->setWindowFullscreen(pWindow, false, FULLSCREEN_FULL);
+    if (pWindow->isFullscreen())
+        g_pCompositor->setWindowFullscreenInternal(pWindow, FSMODE_NONE);
 
     m_lMasterNodesData.remove(*PNODE);
 
@@ -189,7 +189,7 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
     recalculateMonitor(pWindow->m_iMonitorID);
 }
 
-void CRiverLayout::recalculateMonitor(const int& monid) {
+void CRiverLayout::recalculateMonitor(const MONITORID& monid) {
     const auto PMONITOR   = g_pCompositor->getMonitorFromID(monid);
     const auto PWORKSPACE = PMONITOR->activeWorkspace;
 
@@ -203,7 +203,7 @@ void CRiverLayout::recalculateMonitor(const int& monid) {
     }
 
     if (PWORKSPACE->m_bHasFullscreenWindow) {
-        if (PWORKSPACE->m_efFullscreenMode == FULLSCREEN_FULL)
+        if (PWORKSPACE->m_efFullscreenMode == FSMODE_FULLSCREEN)
             return;
 
         // massive hack from the fullscreen func
@@ -321,7 +321,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
     const auto PWINDOW = pNode->pWindow.lock();
 		const auto WORKSPACERULE = g_pConfigManager->getWorkspaceRuleFor(g_pCompositor->getWorkspaceByID(PWINDOW->workspaceID()));
 
-		if (PWINDOW->m_bIsFullscreen && !pNode->ignoreFullscreenChecks)
+		if (PWINDOW->isFullscreen() && !pNode->ignoreFullscreenChecks)
 			return;
 
     PWINDOW->unsetWindowData(PRIORITY_LAYOUT);
@@ -409,33 +409,19 @@ void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner cor
 
 }
 
-void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, eFullscreenMode fullscreenMode, bool on) {
-    if (!validMapped(pWindow))
-        return;
-
-    if (on == pWindow->m_bIsFullscreen || g_pCompositor->isWorkspaceSpecial(pWindow->workspaceID()))
-        return; // ignore
-
+void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscreenMode CURRENT_EFFECTIVE_MODE, const eFullscreenMode EFFECTIVE_MODE) {
     const auto PMONITOR   = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
-    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(pWindow->workspaceID());
+    const auto PWORKSPACE = pWindow->m_pWorkspace;
 
-    if (PWORKSPACE->m_bHasFullscreenWindow && on) {
-        // if the window wants to be fullscreen but there already is one,
-        // ignore the request.
-        return;
+    // save position and size if floating
+    if (pWindow->m_bIsFloating && CURRENT_EFFECTIVE_MODE == FSMODE_NONE) {
+        pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize.goal();
+        pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition.goal();
+        pWindow->m_vPosition             = pWindow->m_vRealPosition.goal();
+        pWindow->m_vSize                 = pWindow->m_vRealSize.goal();
     }
 
-    // otherwise, accept it.
-    pWindow->m_bIsFullscreen           = on;
-    PWORKSPACE->m_bHasFullscreenWindow = !PWORKSPACE->m_bHasFullscreenWindow;
-
-		pWindow->updateDynamicRules();
-		pWindow->updateWindowDecos();
-
-    g_pEventManager->postEvent(SHyprIPCEvent{"fullscreen", std::to_string((int)on)});
-    EMIT_HOOK_EVENT("fullscreen", pWindow);
-
-    if (!pWindow->m_bIsFullscreen) {
+    if (EFFECTIVE_MODE == FSMODE_NONE) {
         // if it got its fullscreen disabled, set back its node if it had one
         const auto PNODE = getNodeFromWindow(pWindow);
         if (PNODE)
@@ -449,20 +435,8 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, eFullscreenMode
             pWindow->updateWindowData();
         }
     } else {
-        // if it now got fullscreen, make it fullscreen
-
-        PWORKSPACE->m_efFullscreenMode = fullscreenMode;
-
-        // save position and size if floating
-        if (pWindow->m_bIsFloating) {
-            pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize.goal();
-            pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition.goal();
-            pWindow->m_vPosition             = pWindow->m_vRealPosition.goal();
-            pWindow->m_vSize                 = pWindow->m_vRealSize.goal();
-        }
-
         // apply new pos and size being monitors' box
-        if (fullscreenMode == FULLSCREEN_FULL) {
+        if (EFFECTIVE_MODE == FSMODE_FULLSCREEN) {
             pWindow->m_vRealPosition = PMONITOR->vecPosition;
             pWindow->m_vRealSize     = PMONITOR->vecSize;
         } else {
@@ -471,25 +445,19 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, eFullscreenMode
             // To keep consistent with the settings without C+P code
 
             SRiverNodeData fakeNode;
-            fakeNode.pWindow     = pWindow;
-            fakeNode.position    = PMONITOR->vecPosition + PMONITOR->vecReservedTopLeft;
-            fakeNode.size        = PMONITOR->vecSize - PMONITOR->vecReservedTopLeft - PMONITOR->vecReservedBottomRight;
-            fakeNode.workspaceID = pWindow->workspaceID();
-            pWindow->m_vPosition = fakeNode.position;
-            pWindow->m_vSize     = fakeNode.size;
-						fakeNode.ignoreFullscreenChecks = true;
+            fakeNode.pWindow                = pWindow;
+            fakeNode.position               = PMONITOR->vecPosition + PMONITOR->vecReservedTopLeft;
+            fakeNode.size                   = PMONITOR->vecSize - PMONITOR->vecReservedTopLeft - PMONITOR->vecReservedBottomRight;
+            fakeNode.workspaceID            = pWindow->workspaceID();
+            pWindow->m_vPosition            = fakeNode.position;
+            pWindow->m_vSize                = fakeNode.size;
+            fakeNode.ignoreFullscreenChecks = true;
 
             applyNodeDataToWindow(&fakeNode);
         }
     }
 
-    g_pCompositor->updateWindowAnimatedDecorationValues(pWindow);
-
-    g_pXWaylandManager->setWindowSize(pWindow, pWindow->m_vRealSize.goal());
-
     g_pCompositor->changeWindowZOrder(pWindow, true);
-
-    recalculateMonitor(PMONITOR->ID);
 }
 
 void CRiverLayout::recalculateWindow(PHLWINDOW pWindow) {
@@ -518,8 +486,6 @@ void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
     if (!PNODE2 || !PNODE)
         return;
 
-    const auto inheritFullscreen = prepareLoseFocus(pWindow);
-
     if (PNODE->workspaceID != PNODE2->workspaceID) {
         std::swap(pWindow2->m_iMonitorID, pWindow->m_iMonitorID);
         std::swap(pWindow2->m_pWorkspace, pWindow->m_pWorkspace);
@@ -536,7 +502,6 @@ void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
     g_pHyprRenderer->damageWindow(pWindow);
     g_pHyprRenderer->damageWindow(pWindow2);
 
-    prepareNewFocus(pWindow2, inheritFullscreen);
 }
 
 Vector2D  CRiverLayout::predictSizeForNewWindowTiled() {
@@ -589,28 +554,6 @@ PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
         }
 
     return nullptr;
-}
-
-bool CRiverLayout::prepareLoseFocus(PHLWINDOW pWindow) {
-    if (!pWindow)
-        return false;
-
-    //if the current window is fullscreen, make it normal again if we are about to lose focus
-    if (pWindow->m_bIsFullscreen) {
-        g_pCompositor->setWindowFullscreen(pWindow, false, FULLSCREEN_FULL);
-        //static auto* const INHERIT = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:nstack:layout:inherit_fullscreen")->intValue;
-        //return *INHERIT == 1;
-    }
-
-    return false;
-}
-
-void CRiverLayout::prepareNewFocus(PHLWINDOW pWindow, bool inheritFullscreen) {
-    if (!pWindow)
-        return;
-
-    if (inheritFullscreen)
-        g_pCompositor->setWindowFullscreen(pWindow, true, g_pCompositor->getWorkspaceByID(pWindow->workspaceID())->m_efFullscreenMode);
 }
 
 std::any CRiverLayout::layoutMessage(SLayoutMessageHeader header, std::string message) {

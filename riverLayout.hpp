@@ -43,7 +43,7 @@ struct SRiverWorkspaceData {
 
 struct SRiverResource {
   wl_resource *resource;
-  uint64_t monitorID;
+  MONITORID monitorID;
 };
 class CRiverLayout : public IHyprLayout {
   public:
@@ -53,10 +53,10 @@ class CRiverLayout : public IHyprLayout {
     virtual void                     onWindowCreatedTiling(PHLWINDOW, eDirection direction = DIRECTION_DEFAULT);
     virtual void                     onWindowRemovedTiling(PHLWINDOW);
     virtual bool                     isWindowTiled(PHLWINDOW);
-    virtual void                     recalculateMonitor(const int&);
+    virtual void                     recalculateMonitor(const MONITORID&);
     virtual void                     recalculateWindow(PHLWINDOW);
     virtual void                     resizeActiveWindow(const Vector2D&, eRectCorner corner, PHLWINDOW pWindow = nullptr);
-    virtual void                     fullscreenRequestForWindow(PHLWINDOW, eFullscreenMode, bool);
+    virtual void                     fullscreenRequestForWindow(PHLWINDOW, const eFullscreenMode, const eFullscreenMode);
     virtual std::any                 layoutMessage(SLayoutMessageHeader, std::string);
     virtual SWindowRenderLayoutHints requestRenderHints(PHLWINDOW);
     virtual void                     switchWindows(PHLWINDOW, PHLWINDOW);
@@ -69,7 +69,7 @@ class CRiverLayout : public IHyprLayout {
     virtual void                     onDisable();
     void 			     riverViewDimensions(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t serial);
     void			     riverCommit(const char *layout_name, uint32_t serial);
-    bool                              addRiverLayoutResource(wl_resource *resource, uint64_t monitorID); 
+    bool                              addRiverLayoutResource(wl_resource *resource, MONITORID monitorID); 
     int                              removeRiverLayoutResource(wl_resource *resource);
     int                              getRiverLayoutResourceCount();
     virtual Vector2D 								 predictSizeForNewWindowTiled();
@@ -95,8 +95,6 @@ class CRiverLayout : public IHyprLayout {
     void                              calculateWorkspace(PHLWORKSPACE);
     PHLWINDOW                          getNextWindow(PHLWINDOW, bool);
     int                               getMastersOnWorkspace(const int&);
-    bool                              prepareLoseFocus(PHLWINDOW);
-    void                              prepareNewFocus(PHLWINDOW, bool inherit_fullscreen);
 
     friend struct SRiverNodeData;
     friend struct SRiverWorkspaceData;
