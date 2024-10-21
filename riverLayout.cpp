@@ -294,12 +294,12 @@ void CRiverLayout::riverCommit(const char *layout_name, uint32_t serial) {
 
 void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
 
-    CMonitor* PMONITOR = nullptr;
+    PHLMONITOR PMONITOR = nullptr;
 
     if (g_pCompositor->isWorkspaceSpecial(pNode->workspaceID)) {
         for (auto& m : g_pCompositor->m_vMonitors) {
             if (m->activeSpecialWorkspaceID() == pNode->workspaceID) {
-                PMONITOR = m.get();
+                PMONITOR = m;
                 break;
             }
         }
