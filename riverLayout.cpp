@@ -82,9 +82,9 @@ void CRiverLayout::moveWindowTo(PHLWINDOW pWindow, const std::string& dir, bool 
  			// if different monitors, send to monitor
 			onWindowRemovedTiling(pWindow);
 			pWindow->moveToWorkspace(PWINDOW2->m_pWorkspace);
-			pWindow->m_iMonitorID = PWINDOW2->m_iMonitorID;
+			pWindow->m_pMonitor = PWINDOW2->m_pMonitor;
 			if (!silent) {
-				const auto pMonitor = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
+				const auto pMonitor = g_pCompositor->getMonitorFromID(pWindow->monitorID());
 				g_pCompositor->setActiveMonitor(pMonitor);
 			}
 			onWindowCreatedTiling(pWindow);
@@ -104,7 +104,7 @@ void CRiverLayout::onWindowCreatedTiling(PHLWINDOW pWindow, eDirection direction
 
     //static auto* const PNEWTOP = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:river:layout:new_on_top")->intValue;
 
-    const auto         PMONITOR = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
+    const auto         PMONITOR = pWindow->m_pMonitor.lock();
 
     //const auto         PNODE = *PNEWTOP ? &m_lMasterNodesData.emplace_front() : &m_lMasterNodesData.emplace_back();
     const auto PNODE = &m_lMasterNodesData.emplace_front();
@@ -165,7 +165,7 @@ void CRiverLayout::onWindowCreatedTiling(PHLWINDOW pWindow, eDirection direction
     }
 
     // recalc
-    recalculateMonitor(pWindow->m_iMonitorID);
+    recalculateMonitor(pWindow->monitorID());
 }
 
 void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
@@ -186,7 +186,7 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
     m_vRemovedWindowVector = pWindow->m_vRealPosition.goal() + pWindow->m_vRealSize.goal() / 2.f;
 
 
-    recalculateMonitor(pWindow->m_iMonitorID);
+    recalculateMonitor(pWindow->monitorID());
 }
 
 void CRiverLayout::recalculateMonitor(const MONITORID& monid) {
@@ -233,7 +233,7 @@ void CRiverLayout::calculateWorkspace(PHLWORKSPACE pWorkspace) {
     if (!pWorkspace)
         return;
 
-    const auto         PMONITOR = g_pCompositor->getMonitorFromID(pWorkspace->m_iMonitorID);
+    const auto         PMONITOR = pWorkspace->m_pMonitor.lock();
     const uint32_t num_nodes = getNodesOnWorkspace(pWorkspace->m_iID);
     //record serial so we know if we're done
     for (auto& nd : m_lMasterNodesData) {
@@ -260,7 +260,7 @@ void CRiverLayout::riverViewDimensions(int32_t x, int32_t y, uint32_t width, uin
 		if (nd.riverDone)
 			continue;
 
-		const auto PMONITOR = g_pCompositor->getMonitorFromID(nd.pWindow.lock()->m_iMonitorID);
+		const auto PMONITOR = nd.pWindow.lock()->m_pMonitor.lock();
 		nd.position = PMONITOR->vecPosition  + PMONITOR->vecReservedTopLeft + Vector2D(x+0.0f, y+0.0f);
 		nd.size = Vector2D(width+0.0f, height+0.0f);
 		nd.riverDone = true;
@@ -304,7 +304,7 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
             }
         }
     } else {
-        PMONITOR = g_pCompositor->getMonitorFromID(g_pCompositor->getWorkspaceByID(pNode->workspaceID)->m_iMonitorID);
+        PMONITOR = g_pCompositor->getWorkspaceByID(pNode->workspaceID)->m_pMonitor.lock();
     }
 
     if (!PMONITOR) {
@@ -405,12 +405,12 @@ void CRiverLayout::resizeActiveWindow(const Vector2D& pixResize, eRectCorner cor
   pWindow->m_bIsFloating = true;
   m_lMasterNodesData.remove(*PNODE);
   g_pLayoutManager->getCurrentLayout()->onWindowCreatedFloating(pWindow);
-  recalculateMonitor(pWindow->m_iMonitorID);
+  recalculateMonitor(pWindow->monitorID());
 
 }
 
 void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscreenMode CURRENT_EFFECTIVE_MODE, const eFullscreenMode EFFECTIVE_MODE) {
-    const auto PMONITOR   = g_pCompositor->getMonitorFromID(pWindow->m_iMonitorID);
+    const auto PMONITOR   = pWindow->m_pMonitor.lock();
     const auto PWORKSPACE = pWindow->m_pWorkspace;
 
     // save position and size if floating
@@ -466,7 +466,7 @@ void CRiverLayout::recalculateWindow(PHLWINDOW pWindow) {
     if (!PNODE)
         return;
 
-    recalculateMonitor(pWindow->m_iMonitorID);
+    recalculateMonitor(pWindow->monitorID());
 }
 
 SWindowRenderLayoutHints CRiverLayout::requestRenderHints(PHLWINDOW pWindow) {
@@ -487,7 +487,7 @@ void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
         return;
 
     if (PNODE->workspaceID != PNODE2->workspaceID) {
-        std::swap(pWindow2->m_iMonitorID, pWindow->m_iMonitorID);
+        std::swap(pWindow2->m_pMonitor, pWindow->m_pMonitor);
         std::swap(pWindow2->m_pWorkspace, pWindow->m_pWorkspace);
     }
 
@@ -495,9 +495,9 @@ void CRiverLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
     PNODE->pWindow  = pWindow2;
     PNODE2->pWindow = pWindow;
 
-    recalculateMonitor(pWindow->m_iMonitorID);
+    recalculateMonitor(pWindow->monitorID());
     if (PNODE2->workspaceID != PNODE->workspaceID)
-        recalculateMonitor(pWindow2->m_iMonitorID);
+        recalculateMonitor(pWindow2->monitorID());
 
     g_pHyprRenderer->damageWindow(pWindow);
     g_pHyprRenderer->damageWindow(pWindow2);
@@ -509,7 +509,7 @@ Vector2D  CRiverLayout::predictSizeForNewWindowTiled() {
 }
 
 void CRiverLayout::alterSplitRatio(PHLWINDOW pWindow, float ratio, bool exact) {
-    recalculateMonitor(pWindow->m_iMonitorID);
+    recalculateMonitor(pWindow->monitorID());
 }
 
 PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
@@ -566,11 +566,11 @@ std::any CRiverLayout::layoutMessage(SLayoutMessageHeader header, std::string me
         return 0;
     }
 
-  const auto RESOURCE = std::find_if(m_lRiverLayoutResources.begin(), m_lRiverLayoutResources.end(), [&](const auto &rres) { return rres.monitorID == header.pWindow->m_iMonitorID;});
+  const auto RESOURCE = std::find_if(m_lRiverLayoutResources.begin(), m_lRiverLayoutResources.end(), [&](const auto &rres) { return rres.monitorID == header.pWindow->monitorID();});
   if (RESOURCE != m_lRiverLayoutResources.end()) {
    		g_pRiverLayoutProtocolManager->sendUserCommandTags(RESOURCE->resource, 1);
       g_pRiverLayoutProtocolManager->sendUserCommand(RESOURCE->resource, message.c_str());
-      recalculateMonitor(header.pWindow->m_iMonitorID);
+      recalculateMonitor(header.pWindow->monitorID());
   }
     return 0;
 }
