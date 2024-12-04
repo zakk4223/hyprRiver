@@ -2,7 +2,7 @@
 River layouts for Hyprland
 
 This plugin implements the river-layout-v3 protocol for Hyprland. 
-This was mostly a proof of concept/because I can thing. It _is_ usable, with the following limitations(?)
+This was mostly a proof of concept/because I can think. It _is_ usable, with the following limitations(?)
 
 - You cannot have any workspace specific layout settings. Hyrpland and River do not use the same workspace model, so river layout providers have no idea how to track per-workspace settings.
 - You cannot resize tiled windows. They will just get forced floating if you try (same as River)
