@@ -1,6 +1,7 @@
 #include "RiverLayoutProtocolManager.hpp"
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/protocols/core/Output.hpp>
+#include <hyprland/src/helpers/Monitor.hpp>
 #include "river-layout-v3-protocol.h"
 
 

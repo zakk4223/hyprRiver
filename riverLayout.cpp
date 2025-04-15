@@ -2,6 +2,11 @@
 #include <hyprland/src/render/decorations/CHyprGroupBarDecoration.hpp>
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/render/decorations/DecorationPositioner.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/config/ConfigDataValues.hpp>
+#include <hyprland/src/config/ConfigManager.hpp>
+#include <hyprland/src/managers/LayoutManager.hpp>
+#include <hyprland/src/render/Renderer.hpp>
 
 
 
@@ -116,32 +121,6 @@ void CRiverLayout::onWindowCreatedTiling(PHLWINDOW pWindow, eDirection direction
 
     const auto         WINDOWSONWORKSPACE = getNodesOnWorkspace(PNODE->workspaceID);
 
-    auto               OPENINGON = getNodeFromWindow(g_pCompositor->m_pLastWindow.lock());
-
-		const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
-		if (g_pInputManager->m_bWasDraggingWindow && OPENINGON) {
-			if (OPENINGON->pWindow.lock()->checkInputOnDecos(INPUT_TYPE_DRAG_END, MOUSECOORDS, pWindow))
-				return;
-		}
-
-    if (OPENINGON && OPENINGON != PNODE && OPENINGON->pWindow.lock()->m_sGroupData.pNextWindow.lock() // target is group
-        && pWindow->canBeGroupedInto(OPENINGON->pWindow.lock())) {
-
-        m_lMasterNodesData.remove(*PNODE);
-
-        static const auto* USECURRPOS = (Hyprlang::INT* const*)g_pConfigManager->getConfigValuePtr("group:insert_after_current");
-        (**USECURRPOS ? OPENINGON->pWindow.lock() : OPENINGON->pWindow.lock()->getGroupTail())->insertWindowToGroup(pWindow);
-
-        OPENINGON->pWindow.lock()->setGroupCurrent(pWindow);
-        pWindow->applyGroupRules();
-        pWindow->updateWindowDecos();
-        recalculateWindow(pWindow);
-		    if (!pWindow->getDecorationByType(DECORATION_GROUPBAR))
-			    pWindow->addWindowDeco(std::make_unique<CHyprGroupBarDecoration>(pWindow));
-
-        return;
-    }
-
     if (WINDOWSONWORKSPACE == 1) {
 
         // first, check if it isn't too big.
@@ -183,7 +162,7 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
 
     m_lMasterNodesData.remove(*PNODE);
 
-    m_vRemovedWindowVector = pWindow->m_vRealPosition.goal() + pWindow->m_vRealSize.goal() / 2.f;
+    m_vRemovedWindowVector = pWindow->m_vRealPosition->goal() + pWindow->m_vRealSize->goal() / 2.f;
 
 
     recalculateMonitor(pWindow->monitorID());
@@ -191,6 +170,9 @@ void CRiverLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
 
 void CRiverLayout::recalculateMonitor(const MONITORID& monid) {
     const auto PMONITOR   = g_pCompositor->getMonitorFromID(monid);
+    if (!PMONITOR || !PMONITOR->activeWorkspace)
+      return;
+
     const auto PWORKSPACE = PMONITOR->activeWorkspace;
 
     if (!PWORKSPACE)
@@ -367,30 +349,25 @@ void CRiverLayout::applyNodeDataToWindow(SRiverNodeData* pNode) {
         CBox               wb = {calcPos + (calcSize - calcSize * **PSCALEFACTOR) / 2.f, calcSize * **PSCALEFACTOR};
         wb.round(); // avoid rounding mess
 
-        PWINDOW->m_vRealPosition = wb.pos();
-        PWINDOW->m_vRealSize     = wb.size();
-
-        g_pXWaylandManager->setWindowSize(PWINDOW, wb.size());
+        *PWINDOW->m_vRealPosition = wb.pos();
+        *PWINDOW->m_vRealSize     = wb.size();
     } else {
 				CBox wb = {calcPos, calcSize};
 				wb.round();
-        PWINDOW->m_vRealSize     = wb.size(); 
-        PWINDOW->m_vRealPosition = wb.pos(); 
-
-        g_pXWaylandManager->setWindowSize(PWINDOW, calcSize);
+        *PWINDOW->m_vRealSize     = wb.size(); 
+        *PWINDOW->m_vRealPosition = wb.pos(); 
     }
 
     if (m_bForceWarps && !**PANIMATE) {
         g_pHyprRenderer->damageWindow(PWINDOW);
 
-        PWINDOW->m_vRealPosition.warp();
-        PWINDOW->m_vRealSize.warp();
+        PWINDOW->m_vRealPosition->warp();
+        PWINDOW->m_vRealSize->warp();
 
         g_pHyprRenderer->damageWindow(PWINDOW);
     }
 
     PWINDOW->updateWindowDecos();
-
 }
 
 bool CRiverLayout::isWindowTiled(PHLWINDOW pWindow) {
@@ -415,10 +392,10 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscre
 
     // save position and size if floating
     if (pWindow->m_bIsFloating && CURRENT_EFFECTIVE_MODE == FSMODE_NONE) {
-        pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize.goal();
-        pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition.goal();
-        pWindow->m_vPosition             = pWindow->m_vRealPosition.goal();
-        pWindow->m_vSize                 = pWindow->m_vRealSize.goal();
+        pWindow->m_vLastFloatingSize     = pWindow->m_vRealSize->goal();
+        pWindow->m_vLastFloatingPosition = pWindow->m_vRealPosition->goal();
+        pWindow->m_vPosition             = pWindow->m_vRealPosition->goal();
+        pWindow->m_vSize                 = pWindow->m_vRealSize->goal();
     }
 
     if (EFFECTIVE_MODE == FSMODE_NONE) {
@@ -428,8 +405,8 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscre
             applyNodeDataToWindow(PNODE);
         else {
             // get back its' dimensions from position and size
-            pWindow->m_vRealPosition = pWindow->m_vLastFloatingPosition;
-            pWindow->m_vRealSize     = pWindow->m_vLastFloatingSize;
+            *pWindow->m_vRealPosition = pWindow->m_vLastFloatingPosition;
+            *pWindow->m_vRealSize     = pWindow->m_vLastFloatingSize;
 
             pWindow->unsetWindowData(PRIORITY_LAYOUT);
             pWindow->updateWindowData();
@@ -437,8 +414,8 @@ void CRiverLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscre
     } else {
         // apply new pos and size being monitors' box
         if (EFFECTIVE_MODE == FSMODE_FULLSCREEN) {
-            pWindow->m_vRealPosition = PMONITOR->vecPosition;
-            pWindow->m_vRealSize     = PMONITOR->vecSize;
+            *pWindow->m_vRealPosition = PMONITOR->vecPosition;
+            *pWindow->m_vRealSize     = PMONITOR->vecSize;
         } else {
             // This is a massive hack.
             // We make a fake "only" node and apply
@@ -516,8 +493,6 @@ PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
     if (!isWindowTiled(pWindow))
         return nullptr;
 
-    const auto PNODE = getNodeFromWindow(pWindow);
-
     if (next) {
             for (auto n : m_lMasterNodesData) {
                 if (n.pWindow.lock() != pWindow && n.workspaceID == pWindow->workspaceID()) {
@@ -526,7 +501,6 @@ PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
             }
             // focus next
             bool reached = false;
-            bool found   = false;
             for (auto n : m_lMasterNodesData) {
                 if (n.pWindow.lock() == pWindow) {
                     reached = true;
@@ -540,7 +514,6 @@ PHLWINDOW CRiverLayout::getNextWindow(PHLWINDOW pWindow, bool next) {
     } else {
             // focus previous
             bool reached = false;
-            bool found   = false;
             for (auto it = m_lMasterNodesData.rbegin(); it != m_lMasterNodesData.rend(); it++) {
                 if (it->pWindow.lock() == pWindow) {
                     reached = true;
