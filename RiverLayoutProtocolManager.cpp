@@ -73,14 +73,14 @@ CRiverLayoutProtocolManager::~CRiverLayoutProtocolManager() {
 
 
 CRiverLayoutProtocolManager::CRiverLayoutProtocolManager() {
-	m_pGlobal = wl_global_create(g_pCompositor->m_sWLDisplay, &river_layout_manager_v3_interface, 2, this, bindManagerInt);
+	m_pGlobal = wl_global_create(g_pCompositor->m_wlDisplay, &river_layout_manager_v3_interface, 2, this, bindManagerInt);
 	if (!m_pGlobal) {
 		Debug::log(LOG, "RiverLayout could not start!");
 		return;
 	}
 
 	m_liDisplayDestroy.notify = handleDisplayDestroy;
-	wl_display_add_destroy_listener(g_pCompositor->m_sWLDisplay, &m_liDisplayDestroy);
+	wl_display_add_destroy_listener(g_pCompositor->m_wlDisplay, &m_liDisplayDestroy);
 	Debug::log(LOG, "RiverLayout started successfully!");
 }
 
@@ -112,7 +112,7 @@ void CRiverLayoutProtocolManager::bindManager(wl_client *client, void *data, uin
 //Since this is just a POC use one global layout per namespace
 
 void CRiverLayoutProtocolManager::getLayout(wl_client *client, wl_resource *resource, uint32_t id, wl_resource *output, const char *r_namespace) {
-  const auto OMONITOR = CWLOutputResource::fromResource(output)->monitor;
+  const auto OMONITOR = CWLOutputResource::fromResource(output)->m_monitor;
   
 	const auto LAYOUT = std::find_if(m_vRiverLayouts.begin(), m_vRiverLayouts.end(), [&](const auto &layout) { return layout->m_sRiverNamespace == r_namespace; });
 
@@ -120,12 +120,12 @@ void CRiverLayoutProtocolManager::getLayout(wl_client *client, wl_resource *reso
 	if (LAYOUT == m_vRiverLayouts.end()) { //Didn't find it
 		m_vRiverLayouts.emplace_back(std::make_unique<CRiverLayout>(r_namespace));
 		wl_resource_set_implementation(newResource, &riverLayoutImpl, m_vRiverLayouts.back().get(), &handleLayoutDestroy);
-    m_vRiverLayouts.back().get()->addRiverLayoutResource(newResource, OMONITOR->ID);
+    m_vRiverLayouts.back().get()->addRiverLayoutResource(newResource, OMONITOR->m_id);
     		HyprlandAPI::addLayout(PHANDLE, m_vRiverLayouts.back()->m_sRiverNamespace, m_vRiverLayouts.back().get());
 	} else {
   //TODO: namespace collision event
 		wl_resource_set_implementation(newResource, &riverLayoutImpl, (*LAYOUT).get(), &handleLayoutDestroy);
-    (*LAYOUT)->addRiverLayoutResource(newResource, OMONITOR->ID );
+    (*LAYOUT)->addRiverLayoutResource(newResource, OMONITOR->m_id );
 	}
 }
 
